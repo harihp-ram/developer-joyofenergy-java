@@ -10,6 +10,7 @@ import uk.tw.energy.service.MeterReadingService;
 import uk.tw.energy.service.PricePlanService;
 
 import java.math.BigDecimal;
+import java.time.DayOfWeek;
 import java.time.Instant;
 import java.util.AbstractMap;
 import java.util.ArrayList;
@@ -63,6 +64,33 @@ public class PricePlanComparatorControllerTest {
         expected.put(PricePlanComparatorController.PRICE_PLAN_ID_KEY, PRICE_PLAN_1_ID);
         expected.put(PricePlanComparatorController.PRICE_PLAN_COMPARISONS_KEY, expectedPricePlanToCost);
         assertThat(controller.calculatedCostForEachPricePlan(SMART_METER_ID).getBody()).isEqualTo(expected);
+    }
+
+    @Test
+    public void shouldCalculateCostForMeterReadingsForEveryPricePlanPerDayOfWeek() {
+
+        ElectricityReading electricityReading = new ElectricityReading(Instant.now().minusSeconds(3600), BigDecimal.valueOf(15.0));
+        ElectricityReading otherReading = new ElectricityReading(Instant.now(), BigDecimal.valueOf(5.0));
+        meterReadingService.storeReadings(SMART_METER_ID, Arrays.asList(electricityReading, otherReading));
+
+        Map<String,Map<DayOfWeek,BigDecimal>> expectedPricePlanToCostPerDay = new HashMap<>();
+        Map<DayOfWeek,BigDecimal> expectedDayToCost = new HashMap<>();
+        expectedDayToCost.put(DayOfWeek.MONDAY, BigDecimal.valueOf(2000));
+
+        Map<DayOfWeek,BigDecimal> expectedDayToCost2 = new HashMap<>();
+        expectedDayToCost2.put(DayOfWeek.MONDAY, BigDecimal.valueOf(200.0));
+
+        Map<DayOfWeek,BigDecimal> expectedDayToCost3 = new HashMap<>();
+        expectedDayToCost3.put(DayOfWeek.MONDAY, BigDecimal.valueOf(400.0));
+
+        expectedPricePlanToCostPerDay.put(PRICE_PLAN_1_ID, expectedDayToCost);
+        expectedPricePlanToCostPerDay.put(PRICE_PLAN_2_ID, expectedDayToCost2);
+        expectedPricePlanToCostPerDay.put(PRICE_PLAN_3_ID, expectedDayToCost3);
+
+        Map<String, Object> expected = new HashMap<>();
+        expected.put(PricePlanComparatorController.PRICE_PLAN_ID_KEY, PRICE_PLAN_1_ID);
+        expected.put(PricePlanComparatorController.PRICE_PLAN_COMPARISONS_KEY, expectedPricePlanToCostPerDay);
+        assertThat(controller.calculatedCostForEachPricePlanPerDayOfWeek(SMART_METER_ID, DayOfWeek.MONDAY).getBody()).isEqualTo(expected);
     }
 
     @Test

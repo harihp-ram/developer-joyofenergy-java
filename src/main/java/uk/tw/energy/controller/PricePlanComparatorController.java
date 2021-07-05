@@ -10,12 +10,16 @@ import uk.tw.energy.service.AccountService;
 import uk.tw.energy.service.PricePlanService;
 
 import java.math.BigDecimal;
+import java.time.DayOfWeek;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
+
+import static java.util.stream.Collectors.toMap;
 
 @RestController
 @RequestMapping("/price-plans")
@@ -50,6 +54,36 @@ public class PricePlanComparatorController {
                 : ResponseEntity.notFound().build();
     }
 
+    @GetMapping("/compare-all/{smartMeterId}?day={dayOfWeek}")
+    public ResponseEntity<Map<String, Object>> calculatedCostForEachPricePlanPerDayOfWeek(@PathVariable String smartMeterId,
+                                                                                          @RequestParam DayOfWeek dayOfWeek){
+
+        String pricePlanId = accountService.getPricePlanIdForSmartMeterId(smartMeterId);
+        Optional<Map<String, Map<DayOfWeek,BigDecimal>>> actualConsumptionsForPricePlans =
+                pricePlanService.getConsumptionCostOfElectricityReadingsForEachPricePlanForDay(smartMeterId);
+
+        if (!actualConsumptionsForPricePlans.isPresent()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Optional<Map<String, Map<DayOfWeek, BigDecimal>>> consumptionsForPricePlansForDay =
+                Optional.ofNullable(actualConsumptionsForPricePlans.get().entrySet()
+                        .stream()
+                        .collect(toMap(Map.Entry::getKey,
+                                e -> e.getValue().entrySet()
+                                        .stream().filter(dayOfWeekBigDecimalEntry -> dayOfWeekBigDecimalEntry.getKey() == dayOfWeek
+                                        ).collect(toMap(Map.Entry::getKey, Map.Entry::getValue)))));
+
+        Map<String, Object> pricePlanComparisons = new HashMap<>();
+        pricePlanComparisons.put(PRICE_PLAN_ID_KEY, pricePlanId);
+        pricePlanComparisons.put(PRICE_PLAN_COMPARISONS_KEY, consumptionsForPricePlansForDay.get());
+
+        return consumptionsForPricePlansForDay.isPresent()
+                ? ResponseEntity.ok(pricePlanComparisons)
+                : ResponseEntity.notFound().build();
+
+    }
+
     @GetMapping("/recommend/{smartMeterId}")
     public ResponseEntity<List<Map.Entry<String, BigDecimal>>> recommendCheapestPricePlans(@PathVariable String smartMeterId,
                                                                                            @RequestParam(value = "limit", required = false) Integer limit) {
@@ -69,4 +103,5 @@ public class PricePlanComparatorController {
 
         return ResponseEntity.ok(recommendations);
     }
+
 }
