@@ -47,6 +47,7 @@ public class MeterReadingControllerTest {
 
     @Test
     public void givenMultipleBatchesOfMeterReadingsShouldStore() {
+        //Comment: TODO
         MeterReadings meterReadings = new MeterReadingsBuilder().setSmartMeterId(SMART_METER_ID)
                 .generateElectricityReadings()
                 .build();
